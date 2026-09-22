@@ -18,14 +18,18 @@ export default function App() {
 
   const handleCanvasProgress = useCallback((pct) => {
     setLoadProgress(pct);
-    if (pct >= 90) {
-      setTimeout(() => setIsLoaded(true), 600);
+    if (pct >= 35) {
+      setTimeout(() => setIsLoaded(true), 500);
     }
   }, []);
 
   const handleInitialLoad = useCallback(() => {
-    // Allows immediate interaction if user wants to dive in
-    setLoadProgress((prev) => Math.max(prev, 30));
+    // Immediate readiness when first frame is loaded
+    setLoadProgress((prev) => Math.max(prev, 25));
+    // Auto-unlock after 2 seconds so user never waits unnecessarily
+    setTimeout(() => {
+      setIsLoaded(true);
+    }, 2200);
   }, []);
 
   return (

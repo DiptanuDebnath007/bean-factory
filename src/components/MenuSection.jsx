@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, memo } from "react";
 
 const MENU_DATA = {
   leftSections: [
@@ -465,4 +465,6 @@ const MenuSection = memo(function MenuSection({ isVisible }) {
       </div>
     </section>
   );
-}
+});
+
+export default MenuSection;

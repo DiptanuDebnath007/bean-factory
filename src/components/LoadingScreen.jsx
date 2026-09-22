@@ -107,6 +107,32 @@ export default function LoadingScreen({ progress, isLoaded, onEnter }) {
         <span>Brewing visuals</span>
         <span style={{ color: "#F8D59E", fontWeight: 700 }}>{Math.round(progress)}%</span>
       </div>
+
+      {progress >= 15 && (
+        <button
+          onClick={onEnter}
+          style={{
+            marginTop: "24px",
+            background: "linear-gradient(135deg, #D4A574 0%, #B8895A 100%)",
+            color: "#0a0a0a",
+            border: "none",
+            borderRadius: "999px",
+            padding: "10px 26px",
+            fontSize: "0.82rem",
+            fontWeight: 700,
+            letterSpacing: "1.5px",
+            textTransform: "uppercase",
+            cursor: "pointer",
+            boxShadow: "0 4px 18px rgba(212, 165, 116, 0.4)",
+            transition: "all 0.3s ease",
+            fontFamily: "'Inter', sans-serif"
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.04)")}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+        >
+          Enter Cafe ☕
+        </button>
+      )}
     </div>
   );
 }

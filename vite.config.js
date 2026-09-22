@@ -22,6 +22,15 @@ export default defineConfig({
             next();
           }
         });
+      },
+      closeBundle() {
+        const srcDir = path.join(__dirname, 'scroll assets');
+        const destDir = path.join(__dirname, 'dist', 'frames');
+        if (fs.existsSync(srcDir)) {
+          fs.mkdirSync(destDir, { recursive: true });
+          fs.cpSync(srcDir, destDir, { recursive: true });
+          console.log('✓ Successfully copied scroll frame assets to dist/frames for production/Netlify');
+        }
       }
     }
   ],
