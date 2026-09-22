@@ -1032,12 +1032,14 @@
 /* Animated traveling laser beam along thin lines */
 .menu-beam-pulse {
   position: absolute;
+  top: 0;
   left: -1.5px;
   width: 4px;
   height: 50px;
   border-radius: 4px;
   background: linear-gradient(180deg, transparent, #FFFFFF, #D4A574, transparent);
   box-shadow: 0 0 12px #D4A574, 0 0 20px rgba(255, 255, 255, 0.8);
+  will-change: transform;
   animation: beamScan 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
@@ -1289,5 +1291,42 @@
   }
   .menu-outer-line {
     display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .menu-grand-board {
+    padding: 16px 12px;
+    border-radius: 16px;
+    max-height: 85vh;
+  }
+  .food-type-title {
+    white-space: normal;
+    font-size: 1.1rem;
+  }
+  .menu-tab-btn {
+    padding: 8px 14px;
+    font-size: 0.78rem;
+  }
+  .dish-name {
+    font-size: 0.95rem;
+  }
+  .dish-price {
+    font-size: 0.95rem;
+  }
+}
+
+/* Respect reduced-motion preferences — disable all heavy animations */
+@media (prefers-reduced-motion: reduce) {
+  .menu-beam-pulse,
+  .menu-side-tick,
+  .header-thin-line::after,
+  .film-grain {
+    animation: none !important;
+  }
+  .glass-card:hover,
+  .food-type-block:hover,
+  .menu-dish-item:hover {
+    transform: none !important;
   }
 }

@@ -376,17 +376,17 @@ h1, h2, h3, h4, h5, h6 {
 
 @keyframes beamScan {
   0% {
-    top: -10%;
+    transform: translateY(-60px);
     opacity: 0;
   }
-  30% {
+  15% {
     opacity: 1;
   }
-  70% {
+  85% {
     opacity: 1;
   }
   100% {
-    top: 105%;
+    transform: translateY(120vh);
     opacity: 0;
   }
 }
@@ -459,5 +459,20 @@ h1, h2, h3, h4, h5, h6 {
     --space-2xl: 2rem;
     --space-3xl: 3rem;
     --space-4xl: 4rem;
+  }
+}
+
+/* ── Reduce motion: disable heavy animations for accessibility & perf ── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .glass-card,
+  .food-type-block {
+    transform: none !important;
   }
 }

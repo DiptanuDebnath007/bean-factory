@@ -63,8 +63,9 @@ export default function App() {
         <ContactSection isVisible={activeSection === "contact"} />
       </main>
 
-      {/* Fixed HUD Telemetry Footer */}
+      {/* Fixed HUD Telemetry Footer — hidden on mobile */}
       <aside
+        className="hud-telemetry"
         style={{
           position: "fixed",
           bottom: "20px",
@@ -91,6 +92,7 @@ export default function App() {
         <span>•</span>
         <span style={{ textTransform: "uppercase" }}>{activeSection}</span>
       </aside>
+      <style>{`.hud-telemetry { display: flex; } @media (max-width: 768px) { .hud-telemetry { display: none !important; } }`}</style>
 
       {/* Scroll Height Spacer — creates the scroll journey for 300 frames */}
       <div

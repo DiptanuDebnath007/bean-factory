@@ -1,6 +1,13 @@
-import React, { memo } from "react";
+import React, { useState, useEffect, memo } from "react";
 
 const HeroOverlay = memo(function HeroOverlay({ isVisible, onNavigate }) {
+  const [isMobile, setIsMobile] = React.useState(typeof window !== "undefined" && window.innerWidth < 640);
+  React.useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", onResize, { passive: true });
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   return (
     <section
       className={`section-overlay hero-overlay ${isVisible ? "active" : ""}`}
@@ -13,7 +20,8 @@ const HeroOverlay = memo(function HeroOverlay({ isVisible, onNavigate }) {
         justifyContent: "center",
         alignItems: "center",
         textAlign: "center",
-        padding: "0 24px",
+        padding: isMobile ? "80px 20px 20px" : "0 24px",
+        overflowY: "auto",
         pointerEvents: isVisible ? "auto" : "none",
         opacity: isVisible ? 1 : 0,
         visibility: isVisible ? "visible" : "hidden",
@@ -82,7 +90,7 @@ const HeroOverlay = memo(function HeroOverlay({ isVisible, onNavigate }) {
       </p>
 
       {/* CTAs */}
-      <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", justifyContent: "center" }}>
+      <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", justifyContent: "center", flexDirection: isMobile ? "column" : "row", width: isMobile ? "100%" : "auto" }}>
         <button
           onClick={() => onNavigate("menu")}
           style={{

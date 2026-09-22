@@ -1,5 +1,11 @@
-import React, { useRef, useEffect, useState, useCallback, memo } from "react";
+﻿import React, { useRef, useEffect, useState, useCallback, memo } from "react";
 import { TOTAL_FRAMES } from "../hooks/useScrollAnimation";
+
+// Detect device capability once at module load
+const IS_MOBILE = typeof window !== "undefined" && window.innerWidth < 768;
+const BATCH_SIZE = IS_MOBILE ? 4 : 6;
+const getMobileResizeWidth = () =>
+  IS_MOBILE ? Math.round(window.innerWidth * 0.65 * (window.devicePixelRatio || 1)) : null;
 
 const ScrollCanvas = memo(function ScrollCanvas({ currentFrame, onProgress, onInitialLoad }) {
   const canvasRef = useRef(null);
@@ -11,151 +17,81 @@ const ScrollCanvas = memo(function ScrollCanvas({ currentFrame, onProgress, onIn
 
   currentFrameRef.current = currentFrame;
 
-  // Format frame number: 1 -> "001", 42 -> "042", 300 -> "300"
   const getFrameUrl = useCallback((index) => {
     const padded = String(index).padStart(3, "0");
     return `/frames/ezgif-frame-${padded}.png`;
   }, []);
 
-  // Optimized progressive preloader with asynchronous decode
-  useEffect(() => {
-    let isCancelled = false;
-    const images = imagesRef.current;
+  const loadImage = useCallback(
+    (index) => {
+      const images = imagesRef.current;
+      if (images[index]) return Promise.resolve(images[index]);
 
-    // Load single image with off-thread decode
-    const loadImage = (index) => {
-      if (images[index] || isCancelled) return Promise.resolve(images[index]);
-
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.src = getFrameUrl(index);
-
-        img.onload = () => {
-          if (isCancelled) return resolve(null);
-          // Asynchronously decode image so main thread doesn't stutter on drawImage
-          if ("decode" in img) {
-            img.decode()
-              .catch(() => {})
-              .finally(() => {
-                if (isCancelled) return resolve(null);
-                images[index] = img;
-                loadedCountRef.current++;
-                if (onProgress) {
-                  const pct = Math.min(100, Math.round((loadedCountRef.current / TOTAL_FRAMES) * 100));
-                  onProgress(pct);
-                }
-                resolve(img);
-              });
-          } else {
-            images[index] = img;
-            loadedCountRef.current++;
-            if (onProgress) {
-              const pct = Math.min(100, Math.round((loadedCountRef.current / TOTAL_FRAMES) * 100));
-              onProgress(pct);
+      return fetch(getFrameUrl(index))
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.blob();
+        })
+        .then((blob) => {
+          if (typeof createImageBitmap === "function") {
+            const resizeWidth = getMobileResizeWidth();
+            if (resizeWidth) {
+              return createImageBitmap(blob, { resizeWidth, resizeQuality: "medium" });
             }
-            resolve(img);
+            return createImageBitmap(blob);
           }
-        };
-
-        img.onerror = () => {
-          loadedCountRef.current++;
-          resolve(null);
-        };
-      });
-    };
-
-    // Phase 1: Load First Frame with high priority
-    loadImage(1).then((img) => {
-      if (isCancelled || !img) return;
-      setFirstFrameReady(true);
-      if (onInitialLoad) onInitialLoad();
-      drawFrame(1);
-
-      // Phase 2: Rapid Stride Keyframes (every 5th frame across the entire 300 frames)
-      // Guarantees that within seconds, any scroll position has an instant adjacent frame
-      const keyframes = [];
-      for (let i = 5; i <= TOTAL_FRAMES; i += 5) {
-        keyframes.push(i);
-      }
-
-      let keyIdx = 0;
-      const loadKeyframes = () => {
-        if (isCancelled || keyIdx >= keyframes.length) {
-          loadRemainingFrames();
-          return;
-        }
-
-        const batch = keyframes.slice(keyIdx, keyIdx + 6);
-        keyIdx += 6;
-        Promise.all(batch.map(loadImage)).then(() => {
-          if (!isCancelled) {
-            // Draw immediately if current frame got loaded
-            drawFrame(currentFrameRef.current);
-            setTimeout(loadKeyframes, 10);
-          }
-        });
-      };
-
-      // Phase 3: Progressive background hydration of all intermediate frames
-      const loadRemainingFrames = () => {
-        if (isCancelled) return;
-        const missing = [];
-        for (let i = 1; i <= TOTAL_FRAMES; i++) {
-          if (!images[i]) missing.push(i);
-        }
-
-        let mIdx = 0;
-        const loadMissingBatch = () => {
-          if (isCancelled || mIdx >= missing.length) return;
-          const batch = missing.slice(mIdx, mIdx + 6);
-          mIdx += 6;
-          Promise.all(batch.map(loadImage)).then(() => {
-            if (!isCancelled && mIdx < missing.length) {
-              setTimeout(loadMissingBatch, 15);
-            }
+          return new Promise((resolve) => {
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            img.src = url;
+            img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+            img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
           });
-        };
-        loadMissingBatch();
-      };
+        })
+        .then((bitmap) => {
+          if (!bitmap) return null;
+          images[index] = bitmap;
+          loadedCountRef.current++;
+          if (onProgress) {
+            const pct = Math.min(100, Math.round((loadedCountRef.current / TOTAL_FRAMES) * 100));
+            onProgress(pct);
+          }
+          return bitmap;
+        })
+        .catch(() => {
+          loadedCountRef.current++;
+          return null;
+        });
+    },
+    [getFrameUrl, onProgress]
+  );
 
-      loadKeyframes();
-    });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [getFrameUrl, onProgress, onInitialLoad]);
-
-  // Fast Cover draw with precomputed layout
   const drawFrame = useCallback((frameIndex) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
     if (!ctx) return;
 
-    // Find closest loaded frame if target is still downloading
     let img = imagesRef.current[frameIndex];
-    if (!img || !img.complete) {
+    if (!img) {
       for (let offset = 1; offset <= 25; offset++) {
         const prev = imagesRef.current[Math.max(1, frameIndex - offset)];
-        if (prev && prev.complete) { img = prev; break; }
+        if (prev) { img = prev; break; }
         const next = imagesRef.current[Math.min(TOTAL_FRAMES, frameIndex + offset)];
-        if (next && next.complete) { img = next; break; }
+        if (next) { img = next; break; }
       }
     }
-
-    if (!img || !img.naturalWidth) return;
+    if (!img) return;
 
     const { width, height, dpr } = sizeRef.current;
     if (width === 0 || height === 0) return;
 
-    // High performance cover calculation
-    const imgW = img.naturalWidth;
-    const imgH = img.naturalHeight;
+    const imgW = img.naturalWidth ?? img.width;
+    const imgH = img.naturalHeight ?? img.height;
+    if (!imgW || !imgH) return;
+
     const imgRatio = imgW / imgH;
     const screenRatio = width / height;
-
     let renderW, renderH, offsetX, offsetY;
 
     if (screenRatio > imgRatio) {
@@ -170,36 +106,78 @@ const ScrollCanvas = memo(function ScrollCanvas({ currentFrame, onProgress, onIn
       offsetY = 0;
     }
 
-    // Direct GPU canvas blit
     ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "medium";
+    ctx.imageSmoothingQuality = IS_MOBILE ? "low" : "medium";
     ctx.drawImage(img, offsetX, offsetY, renderW, renderH);
   }, []);
 
-  // Update canvas on frame change
   useEffect(() => {
-    drawFrame(currentFrame);
-  }, [currentFrame, drawFrame]);
+    let isCancelled = false;
+    const loadFrameSafe = (index) => isCancelled ? Promise.resolve(null) : loadImage(index);
 
-  // Handle window resize with cached metrics
+    loadFrameSafe(1).then((img) => {
+      if (isCancelled || !img) return;
+      setFirstFrameReady(true);
+      if (onInitialLoad) onInitialLoad();
+      drawFrame(1);
+
+      const keyframes = [];
+      for (let i = 5; i <= TOTAL_FRAMES; i += 5) keyframes.push(i);
+
+      let keyIdx = 0;
+      const loadKeyframes = () => {
+        if (isCancelled || keyIdx >= keyframes.length) { loadRemainingFrames(); return; }
+        const batch = keyframes.slice(keyIdx, keyIdx + BATCH_SIZE);
+        keyIdx += BATCH_SIZE;
+        Promise.all(batch.map(loadFrameSafe)).then(() => {
+          if (!isCancelled) {
+            drawFrame(currentFrameRef.current);
+            setTimeout(loadKeyframes, IS_MOBILE ? 20 : 10);
+          }
+        });
+      };
+
+      const loadRemainingFrames = () => {
+        if (isCancelled) return;
+        const images = imagesRef.current;
+        const missing = [];
+        for (let i = 1; i <= TOTAL_FRAMES; i++) { if (!images[i]) missing.push(i); }
+        let mIdx = 0;
+        const loadMissingBatch = () => {
+          if (isCancelled || mIdx >= missing.length) return;
+          const batch = missing.slice(mIdx, mIdx + BATCH_SIZE);
+          mIdx += BATCH_SIZE;
+          Promise.all(batch.map(loadFrameSafe)).then(() => {
+            if (!isCancelled && mIdx < missing.length) {
+              setTimeout(loadMissingBatch, IS_MOBILE ? 30 : 15);
+            }
+          });
+        };
+        loadMissingBatch();
+      };
+
+      loadKeyframes();
+    });
+
+    return () => { isCancelled = true; };
+  }, [loadImage, onInitialLoad, drawFrame]);
+
+  useEffect(() => { drawFrame(currentFrame); }, [currentFrame, drawFrame]);
+
   useEffect(() => {
     const handleResize = () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
-
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.75); // Cap DPR at 1.75 for 60-120fps performance
+      const dpr = Math.min(window.devicePixelRatio || 1, IS_MOBILE ? 1 : 1.5);
       const w = window.innerWidth;
       const h = window.innerHeight;
-
       sizeRef.current = { width: w, height: h, dpr };
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
       canvas.style.width = `${w}px`;
       canvas.style.height = `${h}px`;
-
       drawFrame(currentFrameRef.current);
     };
-
     handleResize();
     window.addEventListener("resize", handleResize, { passive: true });
     return () => window.removeEventListener("resize", handleResize);

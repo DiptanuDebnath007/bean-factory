@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 export default function ContactSection({ isVisible }) {
   const [formData, setFormData] = useState({
@@ -11,6 +11,13 @@ export default function ContactSection({ isVisible }) {
   });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" && window.innerWidth < 640);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", onResize, { passive: true });
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -39,7 +46,8 @@ export default function ContactSection({ isVisible }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "80px 24px",
+        padding: isMobile ? "70px 14px 20px" : "80px 24px",
+        overflowY: "auto",
         pointerEvents: isVisible ? "auto" : "none",
         opacity: isVisible ? 1 : 0,
         transform: isVisible ? "translateY(0)" : "translateY(30px)",
@@ -50,9 +58,10 @@ export default function ContactSection({ isVisible }) {
         style={{
           maxWidth: "1050px",
           width: "100%",
+          minWidth: 0,
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-          gap: "28px"
+          gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(320px, 1fr))",
+          gap: isMobile ? "16px" : "28px"
         }}
       >
         {/* Left Column: Reservation Form */}
@@ -126,7 +135,7 @@ export default function ContactSection({ isVisible }) {
             </div>
           ) : (
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "12px" }}>
                 <div>
                   <label style={{ display: "block", color: "#FFFFFF", fontWeight: 600, fontSize: "0.8rem", marginBottom: "6px" }}>
                     Full Name
@@ -173,7 +182,7 @@ export default function ContactSection({ isVisible }) {
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: "12px" }}>
                 <div>
                   <label style={{ display: "block", color: "#FFFFFF", fontWeight: 600, fontSize: "0.8rem", marginBottom: "6px" }}>
                     Guests
