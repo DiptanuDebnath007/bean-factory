@@ -58,7 +58,7 @@ export default function App() {
       <main className="content-container">
         <HeroOverlay isVisible={activeSection === "hero"} onNavigate={scrollToSection} />
         <AboutSection isVisible={activeSection === "about"} />
-        <MenuSection isVisible={activeSection === "menu"} />
+        <MenuSection isVisible={activeSection === "menu"} onNavigate={scrollToSection} />
         <GallerySection isVisible={activeSection === "gallery"} />
         <ContactSection isVisible={activeSection === "contact"} />
       </main>
